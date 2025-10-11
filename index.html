@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scentwork Network - The Scent Network</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin="" defer onerror="loadLeafletFallback()"></script>
+  <script>
+    // Fallback to alternative CDN if primary fails
+    function loadLeafletFallback() {
+      console.log('Primary CDN failed, trying fallback...');
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+      script.crossOrigin = '';
+      document.head.appendChild(script);
+      
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
+      link.crossOrigin = '';
+      document.head.appendChild(link);
+    }
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+      background: #fafaf8;
+      color: #2c2c2c;
+    }
+    #map {
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+    .logo-header {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1001;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      text-align: right;
+    }
+    .logo-text {
+      font-size: 28px;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+    }
+    .logo-subtext {
+      font-size: 11px;
+      font-weight: 400;
+      color: #7a7a7a;
+      letter-spacing: 0.05em;
+    }
+    @media (max-width: 768px) {
+      .logo-header {
+        top: 10px;
+        right: 10px;
+        padding: 12px 16px;
+      }
+      .logo-text {
+        font-size: 20px;
+      }
+      .logo-subtext {
+        font-size: 9px;
+      }
+    }
+    .commentary-panel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      max-width: 420px;
+      background: rgba(255, 255, 255, 0.97);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(200, 190, 180, 0.3);
+      border-radius: 16px;
+      padding: 24px;
+      color: #2c2c2c;
+      z-index: 1000;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    }
+    @media (max-width: 768px) {
+      .commentary-panel {
+        left: 10px;
+        right: 10px;
+        max-width: none;
+        padding: 18px;
+      }
+    }
+    .commentary-title {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 14px;
+      color: #1a1a1a;
+      letter-spacing: 0.02em;
+    }
+    .location-info {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #8b7355;
+    }
+    .commentary-text {
+      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 14px;
+      transition: opacity 0.3s ease;
+      color: #4a4a4a;
+    }
+    .commentary-text.fade {
+      opacity: 0.3;
+    }
+    .event-badge {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      letter-spacing: 0.08em;
+    }
+    .badge-scan {
+      background: rgba(139, 115, 85, 0.12);
+      border: 1px solid rgba(139, 115, 85, 0.25);
+      color: #8b7355;
+    }
+    .badge-buy {
+      background: rgba(169, 132, 103, 0.15);
+      border: 1px solid rgba(169, 132, 103, 0.3);
+      color: #a98467;
+    }
+    .points-display {
+      font-size: 15px;
+      font-weight: 500;
+      padding: 16px;
+      background: rgba(245, 240, 235, 0.6);
+      border-radius: 10px;
+      border: 1px solid rgba(200, 190, 180, 0.25);
+      margin-top: 14px;
+    }
+    .points-earned {
+      color: #a98467;
+      font-size: 19px;
+      font-weight: 600;
+    }
+    .total-points {
+      color: #8b7355;
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .control-panel {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .control-btn {
+      flex: 1;
+      padding: 11px;
+      border-radius: 10px;
+      background: rgba(139, 115, 85, 0.08);
+      border: 1px solid rgba(139, 115, 85, 0.2);
+      color: #6a5a4a;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .control-btn:hover {
+      background: rgba(139, 115, 85, 0.15);
+      border-color: rgba(139, 115, 85, 0.3);
+    }
+    .control-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .control-btn.active {
+      background: rgba(139, 115, 85, 0.2);
+      border-color: rgba(139, 115, 85, 0.4);
+      color: #4a3a2a;
+    }
+    .step-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .step-btn {
+      flex: 1;
+      padding: 11px;
+      border-radius: 10px;
+      background: rgba(169, 132, 103, 0.12);
+      border: 1px solid rgba(169, 132, 103, 0.25);
+      color: #6a5a4a;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .step-btn:hover:not(:disabled) {
+      background: rgba(169, 132, 103, 0.2);
+      border-color: rgba(169, 132, 103, 0.35);
+    }
+    .step-btn:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+    }
+    .progress-indicator {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: rgba(250, 248, 245, 0.5);
+      border-radius: 8px;
+      font-size: 12px;
+      text-align: center;
+      color: #7a7a7a;
+      font-weight: 500;
+    }
+    .custom-marker {
+      background: none;
+      border: none;
+    }
+    .marker-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2.5px solid white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    }
+    .marker-dot.scan {
+      background: #8b7355;
+    }
+    .marker-dot.buy {
+      background: #a98467;
+    }
+    .marker-pulse {
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid;
+      animation: pulse 2s infinite;
+    }
+    .marker-pulse.scan {
+      border-color: #8b7355;
+    }
+    .marker-pulse.buy {
+      border-color: #a98467;
+    }
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+      100% {
+        transform: scale(2.2);
+        opacity: 0;
+      }
+    }
+    .completion-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 1s ease;
+    }
+    .completion-overlay.show {
+      display: flex;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .completion-content {
+      text-align: center;
+      padding: 40px;
+      max-width: 600px;
+    }
+    .completion-title {
+      font-size: 42px;
+      font-weight: 300;
+      letter-spacing: 0.1em;
+      color: #1a1a1a;
+      margin-bottom: 20px;
+    }
+    .completion-subtitle {
+      font-size: 18px;
+      color: #7a7a7a;
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+    .completion-stats {
+      background: rgba(245, 240, 235, 0.6);
+      border: 1px solid rgba(200, 190, 180, 0.3);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 30px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      font-size: 16px;
+    }
+    .stat-row:last-child {
+      margin-bottom: 0;
+      padding-top: 16px;
+      border-top: 1px solid rgba(200, 190, 180, 0.3);
+    }
+    .stat-label {
+      color: #6a5a4a;
+      font-weight: 500;
+    }
+    .stat-value {
+      color: #a98467;
+      font-weight: 600;
+      font-size: 20px;
+    }
+    .close-btn {
+      padding: 14px 40px;
+      border-radius: 10px;
+      background: rgba(139, 115, 85, 0.15);
+      border: 1px solid rgba(139, 115, 85, 0.3);
+      color: #6a5a4a;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .close-btn:hover {
+      background: rgba(139, 115, 85, 0.25);
+      border-color: rgba(139, 115, 85, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  
+  <div id="loadingIndicator" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,0.95);padding:40px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.12);z-index:3000;text-align:center;">
+    <div style="font-size:20px;color:#6a5a4a;margin-bottom:16px;">Loading Network Map...</div>
+    <div style="width:50px;height:50px;border:4px solid rgba(139,115,85,0.2);border-top-color:#8b7355;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto;"></div>
+  </div>
+  <style>
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+  
+  <div class="logo-header">
+    <div class="logo-text">SCENTWORK</div>
+    <div class="logo-subtext">by leparfum.ai - The Scent Network</div>
+  </div>
+  
+  <div class="commentary-panel">
+    <div class="commentary-title">Kent's Network Activity</div>
+    <div id="eventBadge" class="event-badge badge-buy">Welcome</div>
+    <div class="location-info" id="locationInfo">New York, NY, USA</div>
+    <div class="commentary-text" id="commentaryText">
+      Watch as your network spreads across the globe. Autoplay will begin in a moment...
+    </div>
+    <div class="points-display">
+      <div>This Event: <span class="points-earned" id="pointsEarned">+0</span> points</div>
+      <div style="margin-top: 10px;">Total Earned: <span class="total-points" id="totalPoints">0</span> points</div>
+      <div style="margin-top: 6px; font-size: 14px; opacity: 0.75;">≈ $<span id="dollarAmount">0.00</span></div>
+    </div>
+    <div class="control-panel">
+      <button class="control-btn active" id="autoplayBtn">▶ Autoplay</button>
+      <button class="control-btn" id="manualBtn">⏸ Manual</button>
+    </div>
+    <div class="step-controls">
+      <button class="step-btn" id="prevBtn" disabled>← Previous</button>
+      <button class="step-btn" id="nextBtn" disabled>Next Step →</button>
+    </div>
+    <div class="progress-indicator">
+      <span id="stepNumber">Starting soon...</span>
+    </div>
+  </div>
+
+  <div class="completion-overlay" id="completionOverlay">
+    <div class="completion-content">
+      <div class="completion-title">Global Network Complete</div>
+      <div class="completion-subtitle">
+        Kent, your Scentwork network has reached across 6 continents and 20 cities worldwide.
+      </div>
+      <div class="completion-stats">
+        <div class="stat-row">
+          <span class="stat-label">Total Cities</span>
+          <span class="stat-value">20</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Countries Reached</span>
+          <span class="stat-value">12</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Total Scans</span>
+          <span class="stat-value">11</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Total Purchases</span>
+          <span class="stat-value">9</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Total Points Earned</span>
+          <span class="stat-value" id="finalPoints">1,465</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Total Value</span>
+          <span class="stat-value">$<span id="finalDollars">195.33</span></span>
+        </div>
+      </div>
+      <button class="close-btn" id="closeOverlayBtn">View Full Network</button>
+    </div>
+  </div>
+
+  <script>
+    // Wait for Leaflet to load with timeout
+    let retryCount = 0;
+    const maxRetries = 50; // 5 seconds max to allow for fallback CDN
+
+    function checkLeafletAndInit() {
+      if (typeof L !== 'undefined' && L.map) {
+        console.log('Leaflet loaded successfully');
+        initializeMap();
+      } else if (retryCount < maxRetries) {
+        retryCount++;
+        console.log('Waiting for Leaflet... attempt', retryCount);
+        setTimeout(checkLeafletAndInit, 100);
+      } else {
+        console.error('Leaflet failed to load after maximum retries');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) {
+          loadingIndicator.innerHTML = `
+            <div class="loading-text">Failed to load map</div>
+            <p style="font-size: 14px; color: #7a7a7a; margin-top: 10px;">
+              Please check your internet connection and refresh the page.
+            </p>
+            <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #8b7355; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+              Refresh Page
+            </button>
+          `;
+        }
+      }
+    }
+
+    // Start checking after DOM and resources are ready
+    window.addEventListener('load', function() {
+      setTimeout(checkLeafletAndInit, 200);
+    });
+
+    function initializeMap() {
+    // Event data with precise coordinates
+    const events = [
+      { 
+        id: "e1", 
+        lat: 40.7589, lon: -73.9851,
+        city: "New York", state: "NY", country: "USA",
+        street: "Times Square, Manhattan",
+        type: 'buy',
+        points: 50,
+        zoom: 16,
+        commentary: "Kent made his first purchase at Scentwork NYC in Times Square! Welcome to the network, Kent. You've earned 50 points ($6.67)."
+      },
+      { 
+        id: "e2", 
+        lat: 42.3601, lon: -71.0589,
+        city: "Boston", state: "MA", country: "USA",
+        street: "Newbury Street, Back Bay",
+        type: 'scan',
+        points: 15,
+        zoom: 16,
+        commentary: "Kent, your friend Sarah scanned your referral code on Newbury Street in Boston! You earned 15 referral points ($2.00)."
+      },
+      { 
+        id: "e3", 
+        lat: 39.9526, lon: -75.1652,
+        city: "Philadelphia", state: "PA", country: "USA",
+        street: "Rittenhouse Square",
+        type: 'scan',
+        points: 15,
+        zoom: 16,
+        commentary: "Another scan from Philadelphia! Your college friend Mike is checking out the collection at Rittenhouse Square. +15 points ($2.00) for you, Kent!"
+      },
+      { 
+        id: "e4", 
+        lat: 38.9072, lon: -77.0369,
+        city: "Washington", state: "DC", country: "USA",
+        street: "Georgetown, M Street",
+        type: 'buy',
+        points: 75,
+        zoom: 16,
+        commentary: "Great news, Kent! Sarah from Boston just made a purchase in Georgetown, DC. You earned 75 referral points ($10.00) from her purchase!"
+      },
+      { 
+        id: "e5", 
+        lat: 43.6532, lon: -79.3832,
+        city: "Toronto", state: "ON", country: "Canada",
+        street: "Queen Street West",
+        type: 'scan',
+        points: 15,
+        zoom: 15,
+        commentary: "Your network is going international! Someone in Toronto scanned through your Boston connection. +15 points ($2.00), Kent."
+      },
+      { 
+        id: "e6", 
+        lat: 41.8781, lon: -87.6298,
+        city: "Chicago", state: "IL", country: "USA",
+        street: "Magnificent Mile",
+        type: 'buy',
+        points: 75,
+        zoom: 15,
+        commentary: "Exciting, Kent! Mike from Philadelphia made a purchase on Chicago's Magnificent Mile. That's 75 points ($10.00) added to your account!"
+      },
+      { 
+        id: "e7", 
+        lat: 33.7490, lon: -84.3880,
+        city: "Atlanta", state: "GA", country: "USA",
+        street: "Peachtree Street",
+        type: 'scan',
+        points: 15,
+        zoom: 15,
+        commentary: "Kent, your DC connection just referred someone in Atlanta! +15 points ($2.00). Your network is growing!"
+      },
+      { 
+        id: "e8", 
+        lat: 25.7617, lon: -80.1918,
+        city: "Miami", state: "FL", country: "USA",
+        street: "Ocean Drive, South Beach",
+        type: 'buy',
+        points: 75,
+        zoom: 15,
+        commentary: "Fantastic news! A second-tier referral from Philadelphia just purchased on Ocean Drive in Miami. You earned 75 points ($10.00), Kent!"
+      },
+      { 
+        id: "e9", 
+        lat: 37.7749, lon: -122.4194,
+        city: "San Francisco", state: "CA", country: "USA",
+        street: "Union Square",
+        type: 'scan',
+        points: 15,
+        zoom: 15,
+        commentary: "West Coast expansion! Your Chicago network reached Union Square in San Francisco. That's +15 points ($2.00) for you, Kent."
+      },
+      { 
+        id: "e10", 
+        lat: 34.0522, lon: -118.2437,
+        city: "Los Angeles", state: "CA", country: "USA",
+        street: "Rodeo Drive, Beverly Hills",
+        type: 'buy',
+        points: 100,
+        zoom: 15,
+        commentary: "Big win, Kent! Direct purchase from Rodeo Drive in Beverly Hills through your original NYC connection. 100 points ($13.33) earned!"
+      },
+      { 
+        id: "e11", 
+        lat: 47.6062, lon: -122.3321,
+        city: "Seattle", state: "WA", country: "USA",
+        street: "Pike Place Market",
+        type: 'scan',
+        points: 15,
+        zoom: 15,
+        commentary: "Seattle just joined through San Francisco! +15 points ($2.00). Your West Coast network is active, Kent!"
+      },
+      { 
+        id: "e12", 
+        lat: 51.5074, lon: -0.1278,
+        city: "London", state: "", country: "UK",
+        street: "Covent Garden",
+        type: 'buy',
+        points: 150,
+        zoom: 14,
+        commentary: "Amazing, Kent! Your network just went global! International purchase in Covent Garden, London earned you 150 points ($20.00)!"
+      },
+      { 
+        id: "e13", 
+        lat: 19.4326, lon: -99.1332,
+        city: "Mexico City", state: "", country: "Mexico",
+        street: "Polanco District",
+        type: 'scan',
+        points: 20,
+        zoom: 14,
+        commentary: "Cross-border connection! Someone in Polanco, Mexico City scanned your code. International scan bonus: +20 points ($2.67)!"
+      },
+      { 
+        id: "e14", 
+        lat: 45.5017, lon: -73.5673,
+        city: "Montreal", state: "QC", country: "Canada",
+        street: "Old Montreal",
+        type: 'buy',
+        points: 75,
+        zoom: 15,
+        commentary: "Kent, your Toronto connection just made a sale in Old Montreal! +75 points ($10.00) to your account."
+      },
+      { 
+        id: "e15", 
+        lat: 48.8566, lon: 2.3522,
+        city: "Paris", state: "", country: "France",
+        street: "Champs-Élysées",
+        type: 'scan',
+        points: 20,
+        zoom: 14,
+        commentary: "Your London buyer is spreading the word on the Champs-Élysées in Paris! International scan: +20 points ($2.67), Kent."
+      },
+      { 
+        id: "e16", 
+        lat: 52.5200, lon: 13.4050,
+        city: "Berlin", state: "", country: "Germany",
+        street: "Kurfürstendamm",
+        type: 'buy',
+        points: 150,
+        zoom: 14,
+        commentary: "Incredible growth! Purchase in Berlin on Kurfürstendamm through your London network. 150 international points ($20.00) for you, Kent!"
+      },
+      { 
+        id: "e17", 
+        lat: 41.9028, lon: 12.4964,
+        city: "Rome", state: "", country: "Italy",
+        street: "Via del Corso",
+        type: 'scan',
+        points: 20,
+        zoom: 14,
+        commentary: "Rome is now part of your network through Paris! +20 international scan points ($2.67), Kent."
+      },
+      { 
+        id: "e18", 
+        lat: 35.6762, lon: 139.6503,
+        city: "Tokyo", state: "", country: "Japan",
+        street: "Shibuya Crossing",
+        type: 'buy',
+        points: 200,
+        zoom: 14,
+        commentary: "Massive milestone, Kent! Your NYC connection reached Shibuya in Tokyo with a purchase! Premium Asia bonus: 200 points ($26.67)!"
+      },
+      { 
+        id: "e19", 
+        lat: 25.2048, lon: 55.2708,
+        city: "Dubai", state: "", country: "UAE",
+        street: "Dubai Mall",
+        type: 'scan',
+        points: 20,
+        zoom: 14,
+        commentary: "Dubai Mall connection through London! Your European network is expanding to the Middle East. +20 points ($2.67)."
+      },
+      { 
+        id: "e20", 
+        lat: -33.8688, lon: 151.2093,
+        city: "Sydney", state: "NSW", country: "Australia",
+        street: "Circular Quay",
+        type: 'buy',
+        points: 200,
+        zoom: 14,
+        commentary: "Kent, you're truly global now! Purchase at Circular Quay in Sydney through San Francisco. Pacific bonus: 200 points ($26.67)! Outstanding work!"
+      },
+    ];
+
+    // Initialize map with error handling
+    let map;
+    try {
+      map = L.map('map', {
+        zoomControl: false,
+        attributionControl: true
+      }).setView([40.7589, -73.9851], 4);
+
+      // Add OpenStreetMap tiles with muted style
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+      
+      // Hide loading indicator
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Error initializing map:', error);
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+      }
+      document.getElementById('map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#6a5a4a;font-size:18px;padding:20px;text-align:center;">Map failed to load. Please refresh the page or try a different browser.</div>';
+      return;
+    }
+
+    // State
+    let currentStep = -1;
+    let totalPoints = 0;
+    let markers = [];
+    let polylines = [];
+    let isAutoplay = true;
+    let autoplayInterval = null;
+    let hasCompletedOnce = false;
+
+    // UI elements
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const autoplayBtn = document.getElementById('autoplayBtn');
+    const manualBtn = document.getElementById('manualBtn');
+    const completionOverlay = document.getElementById('completionOverlay');
+    const closeOverlayBtn = document.getElementById('closeOverlayBtn');
+
+    function createMarker(event) {
+      const icon = L.divIcon({
+        className: 'custom-marker',
+        html: `
+          <div style="position: relative;">
+            <div class="marker-pulse ${event.type}"></div>
+            <div class="marker-dot ${event.type}"></div>
+          </div>
+        `,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
+
+      const marker = L.marker([event.lat, event.lon], { icon: icon })
+        .bindPopup(`
+          <strong>${event.city}</strong><br>
+          ${event.street}<br>
+          ${event.type === 'buy' ? '🛍️ Purchase' : '👁️ Scan'}<br>
+          +${event.points} points
+        `);
+      
+      return marker;
+    }
+
+    function updateMap() {
+      if (currentStep < 0) {
+        // Clear map
+        markers.forEach(m => map.removeLayer(m));
+        polylines.forEach(p => map.removeLayer(p));
+        markers = [];
+        polylines = [];
+        map.setView([40.7589, -73.9851], 4);
+        return;
+      }
+
+      const event = events[currentStep];
+      
+      // Add marker for current event
+      const marker = createMarker(event);
+      marker.addTo(map);
+      markers.push(marker);
+
+      // Draw line from previous event if exists
+      if (currentStep > 0) {
+        const prevEvent = events[currentStep - 1];
+        const polyline = L.polyline(
+          [[prevEvent.lat, prevEvent.lon], [event.lat, event.lon]],
+          {
+            color: event.type === 'buy' ? '#a98467' : '#8b7355',
+            weight: 2.5,
+            opacity: 0.6,
+            dashArray: event.type === 'scan' ? '8, 8' : null
+          }
+        ).addTo(map);
+        polylines.push(polyline);
+      }
+
+      // Animate to new location
+      map.flyTo([event.lat, event.lon], event.zoom, {
+        duration: 1.8,
+        easeLinearity: 0.25
+      });
+
+      // Update UI
+      updateCommentary(event);
+    }
+
+    function updateCommentary(event) {
+      const badge = document.getElementById('eventBadge');
+      const locationInfo = document.getElementById('locationInfo');
+      const text = document.getElementById('commentaryText');
+      const pointsEarned = document.getElementById('pointsEarned');
+      const totalPointsEl = document.getElementById('totalPoints');
+      const dollarAmount = document.getElementById('dollarAmount');
+      const stepNumber = document.getElementById('stepNumber');
+
+      // Fade out
+      text.classList.add('fade');
+
+      setTimeout(() => {
+        // Update badge
+        badge.textContent = event.type === 'buy' ? 'Purchase' : 'Scan';
+        badge.className = event.type === 'buy' ? 'event-badge badge-buy' : 'event-badge badge-scan';
+
+        // Update location
+        const locationText = event.state 
+          ? `${event.street} - ${event.city}, ${event.state}, ${event.country}`
+          : `${event.street} - ${event.city}, ${event.country}`;
+        locationInfo.textContent = locationText;
+
+        // Update commentary
+        text.textContent = event.commentary;
+
+        // Update points
+        totalPoints += event.points;
+        pointsEarned.textContent = `+${event.points}`;
+        totalPointsEl.textContent = totalPoints.toLocaleString();
+        dollarAmount.textContent = (totalPoints / 7.5).toFixed(2);
+
+        // Update step counter
+        stepNumber.textContent = `Step ${currentStep + 1} of ${events.length}`;
+
+        // Fade back in
+        text.classList.remove('fade');
+      }, 150);
+    }
+
+    function showCompletionOverlay() {
+      document.getElementById('finalPoints').textContent = totalPoints.toLocaleString();
+      document.getElementById('finalDollars').textContent = (totalPoints / 7.5).toFixed(2);
+      completionOverlay.classList.add('show');
+    }
+
+    function zoomOutToFullNetwork() {
+      // Calculate bounds of all markers
+      if (markers.length > 0) {
+        const group = new L.featureGroup(markers);
+        map.fitBounds(group.getBounds(), {
+          padding: [50, 50],
+          maxZoom: 3,
+          duration: 2
+        });
+      }
+    }
+
+    function startAutoplay() {
+      if (autoplayInterval) return;
+      
+      autoplayInterval = setInterval(() => {
+        if (currentStep < events.length - 1) {
+          currentStep++;
+          updateMap();
+          prevBtn.disabled = false;
+        } else {
+          // Reached the end
+          stopAutoplay();
+          if (!hasCompletedOnce) {
+            hasCompletedOnce = true;
+            setTimeout(() => {
+              showCompletionOverlay();
+            }, 2000);
+          }
+        }
+      }, 3000); // 3 seconds between events
+    }
+
+    function stopAutoplay() {
+      if (autoplayInterval) {
+        clearInterval(autoplayInterval);
+        autoplayInterval = null;
+      }
+    }
+
+    function switchToAutoplay() {
+      isAutoplay = true;
+      autoplayBtn.classList.add('active');
+      manualBtn.classList.remove('active');
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      startAutoplay();
+    }
+
+    function switchToManual() {
+      isAutoplay = false;
+      stopAutoplay();
+      autoplayBtn.classList.remove('active');
+      manualBtn.classList.add('active');
+      prevBtn.disabled = currentStep < 0;
+      nextBtn.disabled = currentStep >= events.length - 1;
+    }
+
+    // Event handlers
+    autoplayBtn.addEventListener('click', () => {
+      if (!isAutoplay) {
+        switchToAutoplay();
+      }
+    });
+
+    manualBtn.addEventListener('click', () => {
+      if (isAutoplay) {
+        switchToManual();
+      }
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if (currentStep < events.length - 1) {
+        currentStep++;
+        updateMap();
+        prevBtn.disabled = false;
+        if (currentStep >= events.length - 1) {
+          nextBtn.disabled = true;
+          if (!hasCompletedOnce) {
+            hasCompletedOnce = true;
+            setTimeout(() => {
+              showCompletionOverlay();
+            }, 2000);
+          }
+        }
+      }
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (currentStep >= 0) {
+        // Remove last marker and polyline
+        if (markers.length > 0) {
+          const lastMarker = markers.pop();
+          map.removeLayer(lastMarker);
+        }
+        if (polylines.length > 0) {
+          const lastPolyline = polylines.pop();
+          map.removeLayer(lastPolyline);
+        }
+
+        currentStep--;
+        
+        // Recalculate total points
+        totalPoints = 0;
+        for (let i = 0; i <= currentStep; i++) {
+          totalPoints += events[i].points;
+        }
+
+        if (currentStep >= 0) {
+          const event = events[currentStep];
+          map.flyTo([event.lat, event.lon], event.zoom, {
+            duration: 1.5
+          });
+          updateCommentary(event);
+        } else {
+          // Reset to start
+          document.getElementById('eventBadge').textContent = 'Welcome';
+          document.getElementById('eventBadge').className = 'event-badge badge-buy';
+          document.getElementById('locationInfo').textContent = 'New York, NY, USA';
+          document.getElementById('commentaryText').textContent = 
+            'Watch as your network spreads across the globe. Click Next Step to continue...';
+          document.getElementById('pointsEarned').textContent = '+0';
+          document.getElementById('totalPoints').textContent = '0';
+          document.getElementById('dollarAmount').textContent = '0.00';
+          document.getElementById('stepNumber').textContent = 'Starting...';
+          map.setView([40.7589, -73.9851], 4);
+        }
+
+        nextBtn.disabled = false;
+        if (currentStep < 0) {
+          prevBtn.disabled = true;
+        }
+      }
+    });
+
+    closeOverlayBtn.addEventListener('click', () => {
+      completionOverlay.classList.remove('show');
+      zoomOutToFullNetwork();
+    });
+
+    // Keyboard shortcuts (only in manual mode)
+    document.addEventListener('keydown', (e) => {
+      if (!isAutoplay) {
+        if (e.key === 'ArrowRight' && !nextBtn.disabled) {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft' && !prevBtn.disabled) {
+          prevBtn.click();
+        }
+      }
+    });
+
+    // Start autoplay after a brief delay
+    setTimeout(() => {
+      startAutoplay();
+    }, 2000);
+    } // End of initializeMap function
+  </script>
+</body>
+</html>
